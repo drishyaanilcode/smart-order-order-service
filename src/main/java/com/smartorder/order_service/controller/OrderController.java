@@ -1,6 +1,6 @@
 package com.smartorder.order_service.controller;
 
-//import com.smartorder.order_service.dto.OrderRequest;
+import com.smartorder.order_service.dto.OrderRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
