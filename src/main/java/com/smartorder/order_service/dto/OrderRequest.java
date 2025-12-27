@@ -1,18 +1,10 @@
 package com.smartorder.order_service.dto;
 
 public class OrderRequest {
-    private Long id;
-    private String productName;
-    private int quantity;
-    private String status;
 
-    public Long getId() {
-        return id;
-    }
+        private String productName;
+        private int quantity;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public String getProductName() {
         return productName;
@@ -29,12 +21,6 @@ public class OrderRequest {
     public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
-
-    public String getStatus() {
-        return status;
+    // getters/setters
     }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
-}
