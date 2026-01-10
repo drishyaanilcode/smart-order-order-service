@@ -2,8 +2,11 @@ package com.smartorder.order_service.service;
 import com.smartorder.order_service.dto.OrderRequest;
 import com.smartorder.order_service.dto.OrderDTO;
 import com.smartorder.order_service.entity.Order;
+import com.smartorder.order_service.entity.OrderStatus;
 import com.smartorder.order_service.repository.OrderRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import com.smartorder.order_service.exception.ResourceNotFoundException;
 import java.util.List;
 
     @Service
@@ -11,38 +14,43 @@ import java.util.List;
         private final OrderRepository orderRepository;
 
         public OrderService(OrderRepository orderRepository) {
+
             this.orderRepository = orderRepository;
         }
 
-        // Health check
-        public String healthStatus() {
-            return "Order Service is running";
-        }
-
         // Read by ID
-        public OrderDTO getOrderById(Long id) {
-            Order order = orderRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
+       public OrderDTO getOrderById(Long id) {
+           Order order = orderRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
             return mapToDTO(order);
         }
         // Create order
         public OrderDTO createOrder(OrderRequest request) {
+            if (request.getProductName() == null || request.getProductName().isBlank()) {
+                throw new IllegalArgumentException("Product name must not be empty");
+            }
+
+            if (request.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Quantity must be greater than zero");
+            }
             Order order = new Order();
             order.setProductName(request.getProductName());
             order.setQuantity(request.getQuantity());
-            order.setStatus("CREATED");
-            Order savedOrder = orderRepository.save(order);
-            return mapToDTO(savedOrder);
+            order.setStatus(OrderStatus.CREATED);
+            return mapToDTO(orderRepository.save(order));
         }
         // Update
-        public OrderDTO updateOrder(Long id, OrderRequest request) {
+        @Transactional
+            public OrderDTO updateOrderStatus(Long id, OrderStatus newStatus) {
             Order order = orderRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
-            order.setProductName(request.getProductName());
-            order.setQuantity(request.getQuantity());
-            Order updated = orderRepository.save(order);
-            return mapToDTO(orderRepository.save(order));
-
+                  .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+            if (!isValidStatusChange(order.getStatus(), newStatus)) {
+                throw new IllegalStateException(
+                        "Invalid status transition from " + order.getStatus() + " to " + newStatus
+                );
+            }
+            order.setStatus(newStatus);
+            return mapToDTO(order);
         }
 
         // Read orders
@@ -53,9 +61,10 @@ import java.util.List;
                     .toList();
         }
         // Delete
-        public void deleteOrder(Long id) {
-            if (!orderRepository.existsById(id)) {
-                throw new RuntimeException("Order not found with id: " + id);
+       @Transactional
+       public void deleteOrder(Long id) {
+           if (!orderRepository.existsById(id)) {
+                throw new ResourceNotFoundException("Order not found with id: " + id);
             }
             orderRepository.deleteById(id);
         }
@@ -66,7 +75,25 @@ import java.util.List;
                     order.getId(),
                     order.getProductName(),
                     order.getQuantity(),
-                    order.getStatus()
+                    order.getStatus().name()
             );
         }
+
+        private boolean isValidStatusChange(OrderStatus current, OrderStatus next) {
+
+            if (current == OrderStatus.CREATED) {
+                return next == OrderStatus.CONFIRMED || next == OrderStatus.CANCELLED;
+            }
+
+            if (current == OrderStatus.CONFIRMED) {
+                return next == OrderStatus.SHIPPED || next == OrderStatus.CANCELLED;
+            }
+
+            if (current == OrderStatus.SHIPPED) {
+                return next == OrderStatus.DELIVERED;
+            }
+
+            return false;
+        }
+
     }
